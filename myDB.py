@@ -3,6 +3,7 @@ import json
 class MyDataBase:
     dicData = {}
     dataDir = 'data.json'
+    nameList=[]
     def __init__(self):
         pass
     
@@ -14,12 +15,19 @@ class MyDataBase:
     
     def saveData(self):
         with open(self.dataDir,'w') as file:
-            json.dump(self.data,file,indent=4,ensure_ascii=False)
-
+            json.dump(self.dicData,file,indent=4,ensure_ascii=False)
+            file.close()
     def loadData(self):
         with open(self.dataDir) as file:
             data = json.load(file)
+            file.close()
+        return data
 
+    def httpNameList(self):
+        with open(self.dataDir) as file:
+            data = json.load(file)
+            file.close()
+        return list(data.keys())
 
 
 

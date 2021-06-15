@@ -1,7 +1,13 @@
 import zmq
 import time
+import basic_chord
+import myDB
 
-port =8080
+IP = '127.0.0.1'
+port = 8080
+
+node = basic_chord.Node(basic_chord.getHash(IP + ":" + str(port)))
+
 
 context = zmq.Context()
 # Se crea un socket de tipo replay (REP)
