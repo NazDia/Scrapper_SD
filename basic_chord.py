@@ -383,8 +383,7 @@ class Node:
             recvIPPort = self.getSuccessor(self.succ, entryId)
             recvId = getHash(recvIPPort[0] + ":" + str(recvIPPort[1]))
             self.fingerTable[entryId] = (recvId, recvIPPort)
-        # self.printFTable()
-    #este
+
     def updateOtherFTables(self):
         here = self.succ
         while True:

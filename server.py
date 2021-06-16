@@ -31,6 +31,9 @@ def start(IP, port, IP_dest=None, port_dest=None):
         elif x == '2':
             showFinger(node, 5)
 
+        elif x == '3':
+            node.leave()
+
 def printNodes(node):
     print ('Ring nodes :')
     end = node
