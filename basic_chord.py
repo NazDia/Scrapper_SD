@@ -18,9 +18,9 @@ DB = myDB.MyDataBase()
 M = 5
 MAX_NODES = 2 ** M
 
-def getHash(key):
+def getHash(key, m=MAX_NODES):
     result = hashlib.sha1(key.encode())
-    return int(result.hexdigest(), 16) % MAX_NODES
+    return int(result.hexdigest(), 16) % m
 
 class Node:
     def __init__(self, ip, port):

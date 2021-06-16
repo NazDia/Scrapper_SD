@@ -47,6 +47,8 @@ class My_RPC:
             self.mutex.release()
             addr = msg[0:2]
             current_call = msg[2:]
+            # for i in self._inherited_classes.keys():
+            #     print(i)
             handler = threading.Thread(target=self.handler, args=[addr, current_call])
             handler.start()
             
@@ -74,7 +76,8 @@ class My_RPC:
         
     def handler_call(self, addr, call):
         obj = self.idic[call[1].decode('utf-8')]
-        semi_ans = getattr(obj, call[2].decode('utf-8'))(*call[3:])
+        params = [ self.deserialize(x) for x in call[3:] ]
+        semi_ans = getattr(obj, call[2].decode('utf-8'))(*params)
         ans = [ ANSWER, self.serialize(semi_ans) ]
         while True:
             self.mutex.acquire()
@@ -95,9 +98,11 @@ class My_RPC:
         idic = self.idic
         inh_classes = self._inherited_classes
         deserialize = self.deserialize
+        serialize = self.serialize
         mutex = self.mutex
         poller = self.poller
         context = self.context
+        ival_dic = self.ival_dic
         class RPC_sub(class_x):
             __rpc_context = None
             __rpc_address = None
@@ -128,20 +133,24 @@ class My_RPC:
                     def f(*args):
                         f_args = []
                         for i in args:
-                            if i.__class__ in inh_classes.keys():
-                                f_args.append(inh_classes[i.__class__.__name__](i).__rpc_serialize__())
+                            # print(i.__class__.__name__)
+                            f_args.append(serialize(i))
+                            # if i.__class__.__name__ in inh_classes.keys():
+                            #     if i in ival_dic.keys():
+                            #         f_args.append(ival_dic[i].__rpc_serialize())
+                            #     # f_args.append(inh_classes[i.__class__.__name__](i).__rpc_serialize__())
 
-                            elif i.__class__.__name__ == 'int':
-                                f_args.append(b'int:' + bytes([i]))
+                            # elif i.__class__.__name__ == 'int':
+                            #     f_args.append(b'int:' + bytes([i]))
 
-                            elif i.__class__.__name__ == 'string':
-                                f_args.append(b'string:' + bytes(i, 'utf-8'))
+                            # elif i.__class__.__name__ == 'string':
+                            #     f_args.append(b'string:' + bytes(i, 'utf-8'))
 
-                            elif i.__class__.__name__ == 'float':
-                                raise NotImplementedError()
+                            # elif i.__class__.__name__ == 'float':
+                            #     raise NotImplementedError()
 
-                            else:
-                                raise NotImplementedError()
+                            # else:
+                            #     raise NotImplementedError()
                             
                         sock = zmq.Context().socket(zmq.REQ)
                         sock.connect('tcp://%s:%s' % self.__rpc_address)
@@ -163,7 +172,7 @@ class My_RPC:
                                 continue
                             
                             # print('receiving')
-                            # time.sleep(0.1)
+                            time.sleep(0.1)
                             ret = sock.recv_multipart()
                             mutex.acquire()
                             if ret[0] == ANSWER:
@@ -245,6 +254,9 @@ class My_RPC:
         if obj.__class__.__name__ in self._inherited_classes.keys() and obj in self.ival_dic.keys():
             return self.ival_dic[obj].__rpc_serialize__()
 
+        elif obj.__class__.__name__ == 'RPC_sub':
+            return obj.__rpc_serialize__()
+
         elif obj.__class__.__name__ == 'int':
             return b'int:' + bytes([obj])
 
@@ -286,47 +298,3 @@ class My_RPC:
 
             return self.deserialize(ret[1])
 
-
-def a(arg1, aeg2, arg3):
-    for i in arg1:
-        print(i)
-
-# w = [1,2,3]
-# a(*w)
-class A:
-    def a(self):
-        return self
-
-    def register_other(self, other):
-        self.other = other
-        return other
-
-# print('wata'.__class__.__name__)
-a = b'1'
-n = a.decode('utf-8')
-rpc1 = My_RPC(('127.0.0.1', 8000))
-rpc1.register_class(A)
-rpc2 = My_RPC(('127.0.0.1', 8080))
-rpc2.register_class(A)
-m = A()
-ret = rpc1.register_name(m, '1')
-temp = rpc2.request_item(('127.0.0.1', 8000), '1')
-n = A()
-ret2 = rpc2.register_name(n, '1')
-f = rpc1.dic[ret]
-x = f.a()
-print(x)
-x = f.a()
-print(x)
-x = f.a()
-print(x)
-x = f.a()
-print(x)
-x = f.a()
-print(x)
-x = f.a()
-print(x)
-n.register_other(temp)
-print()
-print(n.other.a())
-a=0
