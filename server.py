@@ -5,7 +5,7 @@ import chord
 import myDB
 from rpc import My_RPC
 import sys
-
+import urllib.request
 # IP = '127.0.0.1'
 # port = 8080
 
@@ -22,6 +22,38 @@ def start(IP, port, IP_dest=None, port_dest=None):
     else:
         node.join(node)
 
+    # context = zmq.Context()
+    # # Se crea un socket de tipo replay (REP)
+    # socket = context.socket(zmq.REP)
+    # # Asignarle al socket la dirección del server
+    # socket.bind("tcp://*:%s" % (port+1))
+    # while True:
+    #     # Esperar por el próximo request de un cliente
+    #     message = socket.recv_multipart()
+
+    #     request_type = message[0].decode()
+    #     http = message[1].decode()
+
+    #     #get http request 
+    #     if request_type == '0':
+    #         send_data = node.get_file()
+    #         if  send_data is None:
+    #             send_data = urllib.request.urlopen(http).read().decode()
+    #         time.sleep (1) # Esperar un tiempo
+    #         socket.send_string(send_data)
+        
+    #     # set http request    
+    #     else:
+    #         body = message [2]
+            
+    #         send_data = 'save file ok'
+    #         if not node.save_file(http,body):
+    #             send_data = 'the file already exist'
+            
+    #         socket.send_string(send_data)
+
+    http = 'https://www.prueba.com'
+    body =  '112121'
     print('Waiting')
     while True:
         x = input()
@@ -33,6 +65,13 @@ def start(IP, port, IP_dest=None, port_dest=None):
 
         elif x == '3':
             node.leave()
+        
+        elif x == '4':
+            node.save_file(http,body)
+        
+        elif x == '5':
+            data = node.get_file(http)
+            print (data)
 
 def printNodes(node):
     print ('Ring nodes :')
@@ -52,6 +91,7 @@ def showFinger(node, k):
 
 if __name__ == "__main__":
     if len(sys.argv) <3:
+        start('127.0.0.1',8087)
         raise Exception()
 
     elif len(sys.argv) == 3:
@@ -62,15 +102,4 @@ if __name__ == "__main__":
 
 
 
-# context = zmq.Context()
-# # Se crea un socket de tipo replay (REP)
-# socket = context.socket(zmq.REP)
-# # Asignarle al socket la dirección del server
-# socket.bind("tcp://*:%s" % port)
-# while True:
-#     # Esperar por el próximo request de un cliente
-#     message = socket.recv_multipart()
-#     print ("Received request: ", message)
-#     time.sleep (1) # Esperar un tiempo
-#     # Responder mensaje al cliente
-#     socket.send_string("World from %s" % port)
+  

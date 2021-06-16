@@ -1,7 +1,10 @@
+from os import truncate
+from platform import node
 import time
 import random
 import hashlib
 import threading
+import myDB
 k = 5
 MAX = 2**k
 
@@ -50,11 +53,16 @@ def set_mutex(method):
 
     return f
 
+
+
 class Node:
     def __init__(self, idx):
+        self.data_base = myDB.MyDataBase()
+        self.data_base.loadData()
         self.id = idx
         self.finger = {}
         self.start = {}
+        self.filenameList = self.data_base.httpNameList()
         for i in range(k):
             self.start[i] = (self.id+(2**i)) % (2**k)
 
@@ -182,30 +190,33 @@ class Node:
         self.predecessor.setSuccessor(self.successor())
         return self.update_others_leave()
 
-
-
-    # def fix_fingers_loop(self):
-    #     interval_milliseconds = 2000
-    #     while True:
-    #         try:
-    #             self.fix_fingers()
-    #         except Exception as exc:
-    #             # print(exc)
-    #             continue
-    #         time.sleep(interval_milliseconds/1000)
-    
-    # def fix_fingers(self):
-    #     """
-    #     Randomly updates a finger table's entry
-    #     """
-    #     if k < 2:
-    #         return
-    #     update_index = random.randint(2, k)
-    #     finger_table_entry = self.get_finger(update_index)
-    #     start = self.start[update_index]
-    #     finger_table_entry.setSuccessor(self.find_successor(start))
-  
+    def lookup(self, key):
         
+        if self.successor()==self:
+            return self
+
+
+        if between(key, self.get_pred().get_id(), ( self.get_id() + 1) % MAX ) :
+            return self
+        successor = self.find_successor(key)
+        return successor.lookup(key)
+    
+    def save_file(self,filename,body):
+        key = getHash(filename)
+        node = self.lookup(key)
+        if filename in node.filenameList:
+            return False
+
+        node.filenameList.append(filename)
+        node.data_base.addData(filename,body)
+        node.data_base.saveData()        
+        return True
+    
+    def get_file(self,filename):
+        node = self.lookup(filename)
+        if filename in node.filenameList:
+            return node.data_base.get_http(filename)
+        return None
 
     """
     SaveFile
