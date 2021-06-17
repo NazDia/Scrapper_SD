@@ -235,7 +235,7 @@ class Node:
         node = self.lookup(filename)
         if filename in node.filenameList():
             return node.data_base().get_http(filename)
-        return None
+        return 'ok'
 
     """
     SaveFile

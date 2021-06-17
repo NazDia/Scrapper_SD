@@ -12,10 +12,10 @@ class MyDataBase:
 
     def addData(self,key,value):
         self.dicData[key]=value
-        return None
+        return 'ok'
     def removeData(self,key):
         self.dicData.pop(key)
-        return None
+        return 'ok'
 
     def get_http(self,key):
         return self.dicData[key]
@@ -25,7 +25,7 @@ class MyDataBase:
         with open(self.dataDir,'w') as file:
             json.dump(self.dicData,file,indent=4,ensure_ascii=False)
             file.close()
-        return None
+        return 'ok'
             
     def loadData(self):
         with open(self.dataDir) as file:
