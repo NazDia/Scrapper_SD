@@ -44,7 +44,40 @@ def betweenE(value,init,end):
 
 mutex = threading.Lock()
 
+
+def except_handler(method):
+    def f(*args):
+        while True:
+            try:
+                return method(*args)
+
+            except Exception as exc:
+                print(exc)
+                print('Trying again...')
+                return None
+
+    return f
+
+
+def check_none(method):
+    @except_handler
+    def f(*args):
+        ret = method(*args)
+        if not ret is None:
+            return ret
+
+        for i in range(1, k):
+            if args[0].finger[i] == args[0].finger[0]:
+                args[0].finger[i] = args[0].succ_succ
+
+        args[0].update_finger_table_leave()
+        return method(*args)
+
+    return f
+
+
 def set_mutex(method):
+    @check_none
     def f(*args):
         mutex.acquire()
         ret = method(*args)
@@ -60,24 +93,42 @@ class Node:
         self.__data_base = myDB.MyDataBase()
         self.__data_base.loadData()
         self.id = idx
+        self.succ_succ = None
+        self.pred_pred = None
         self.finger = {}
         self.start = {}
         self.__filenameList = self.__data_base.httpNameList()
         for i in range(k):
             self.start[i] = (self.id+(2**i)) % (2**k)
 
-        # fingers = threading.Thread(target=self.fix_fingers_loop)
-        # fingers.start()
 
+    @set_mutex
     def data_base(self):
         return self.__data_base
     
+    @set_mutex
     def filenameList(self):
         return self.__filenameList
 
+<<<<<<< HEAD
     def set_filenamelist(self,data):
         self.__filenameList.append(data) 
         return 'ok'  
+=======
+    @set_mutex
+    def set_filenamelist(self, data):
+        self.__filenameList.append(data)
+        return 'ok'
+
+    @set_mutex
+    def set_succ_succ(self, elem):
+        self.succ_succ = elem
+        return elem
+
+    @set_mutex
+    def get_succ_succ(self, elem):
+        return self.succ_succ
+>>>>>>> 582b03e37d9dd9660216800a8f4c0e5dc27193b4
 
     @set_mutex
     def setSuccessor(self,succ):
@@ -98,6 +149,15 @@ class Node:
         return self.predecessor
 
     @set_mutex
+    def get_pred_pred(self):
+        return self.pred_pred
+
+    @set_mutex
+    def set_pred_pred(self, value):
+        self.pred_pred = value
+        return self.pred_pred
+
+    @set_mutex
     def set_finger(self, i, value):
         self.finger[i] = value
         return value
@@ -106,12 +166,14 @@ class Node:
     def successor(self):
         return self.finger[0]
     
+    @except_handler
     def find_successor(self,id):  
         if betweenE(id,self.get_pred().get_id(),self.id):
             return self
         n = self.find_predecessor(id)
         return n.successor()
     
+    @except_handler
     def find_predecessor(self,id):
         if id == self.get_id:
             return self.get_pred()
@@ -120,13 +182,14 @@ class Node:
             n1 = n1.closest_preceding_finger(id)
         return n1
     
+    @except_handler
     def closest_preceding_finger(self,id):
         for i in range(k-1,-1,-1):
             if between(self.finger[i].get_id(),self.id,id):
                 return self.finger[i]
         return self
         
-    
+    @except_handler
     def join(self,n1):
         if self == n1:
             for i in range(k):
@@ -134,11 +197,13 @@ class Node:
             self.set_pred(self)
         else:
             self.init_finger_table(n1)
-            self.update_others()  
+            self.update_others() 
 
+        self.succ_succ = self.successor().successor() 
+        self.pred_pred = self.get_pred().get_pred()
         return self
           
-            
+    @except_handler
     def init_finger_table(self,n1):
         self.set_finger(0, n1.find_successor(self.start[0]))
         self.set_pred(self.successor().get_pred())
@@ -152,6 +217,7 @@ class Node:
 
         return self
 
+    @except_handler
     def update_others(self):
         for i in range(k):
             prev  = decr(self.id,2**i)
@@ -161,7 +227,8 @@ class Node:
             p.update_finger_table(self,i)
 
         return 'OK'
-            
+    
+    @except_handler
     def update_finger_table(self,s,i):
         semi = s.get_id()
         if Ebetween(semi,self.id,self.finger[i].get_id()) and self.id!=semi:
@@ -171,9 +238,9 @@ class Node:
 
         return 'OK'
 
+    @except_handler
     def update_finger_table_leave(self):
         for i in self.start.keys():
-            # entryId = (self.id + (2 ** i)) % 2**k
             entryId = self.start[i]
             # If only one node in network
             if self.successor() == self:
@@ -184,6 +251,7 @@ class Node:
 
         return 'OK'
 
+    @except_handler
     def update_others_leave(self):
         current = self.successor()
         end = self.successor()
@@ -193,8 +261,15 @@ class Node:
             current = current.successor()
             changed = True
 
+        changed = False
+        while current != end or not changed:
+            current.set_succ_succ(current.successor().successor())
+            current.set_pred_pred(current.get_pred().get_pred())
+            changed = True
+
         return 'OK'
 
+    @except_handler
     def leave(self):
         suc = self.successor()
         suc.set_pred(self.get_pred())
@@ -205,12 +280,14 @@ class Node:
 
         return self.update_others_leave()
 
+    @except_handler
     def give_legacy(self):
         suc = self.successor() 
         for key in self.data_base().keys():
             if not key in suc.data_base().keys():
                 suc.data_base().addData(key , self.data_base().get_http(key)) 
 
+    @except_handler
     def lookup(self, key):
         
         if self.successor()==self:
@@ -221,6 +298,7 @@ class Node:
         successor = self.find_successor(key)
         return successor.lookup(key)
     
+    @except_handler
     def save_file(self,filename,body):
         key = getHash(filename)
         node = self.lookup(key)
@@ -229,37 +307,19 @@ class Node:
 
         node.filenameList().append(filename)
         node.data_base().addData(filename,body)
+<<<<<<< HEAD
         node.data_base().saveData() 
         node.set_filenamelist(filename)      
+=======
+        node.data_base().saveData()   
+        node.set_filenamelist(filename)     
+>>>>>>> 582b03e37d9dd9660216800a8f4c0e5dc27193b4
         return True
-    
   
-
+    @except_handler
     def get_file(self,filename):
         node = self.lookup(getHash(filename))
         if filename in node.filenameList():
             return node.data_base().get_http(filename)
         return 'Not found'
 
-    """
-    SaveFile
-    LookupId
-    GetFile
-    """
-
-
-def printNodes(node):
-    print ('Ring nodes :')
-    end = node
-    print (node.get_id())
-    while end != node.successor() and node.successor() != node:
-        node = node.successor()
-        print (node.get_id())
-    print ('-----------')
-
-def showFinger(node, k):
-    print ('Finger table of node ' + str(node.get_id()))
-    print ('start:node')
-    for i in range(k):
-        print (str(node.start[i]) +' : ' +str(node.finger[i].get_id()))  
-    print ('-----------')
