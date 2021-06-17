@@ -1,28 +1,42 @@
 import json
 from os import truncate
+from typing import Counter
 
 class MyDataBase:
-    dicData = {}
+    __dicData__ = {}
     my_data = 'DataBase/my_data'
-    prec_data = 'DataBase/prec_data '
+    pred_data = 'DataBase/pred_data '
     nameList=[]
+    cache_size = 5 
+    cache_counter = 0
+    cache_elems = []
+    pop_item = None
     def __init__(self):
-        try:
-            open(self.my_data,'r')
-            open(self.prec_data,'r')
-        except:  
+        # try:
+        #     open(self.my_data,'r')
+        #     open(self.pred_data,'r')
+        # except:  
             open(self.my_data,'w')
-            open(self.prec_data,'w')
+            open(self.pred_data,'w')
         
-    
+    def dicData(self):
+        return self.__dicData__
+
     def keys(self):
-        return self.dicData.keys()
+        return self.____dicData____.keys()
 
     def addData(self,key,value,self_data=True):
-        dir = self.my_data if self_data else self.prec_data
-
+        dir = self.my_data if self_data else self.pred_data
+        
+        if len(self.__dicData__)>=self.cache_size:
+            self.__dicData__.pop(self.cache_elems[self.cache_counter])
+            self.cache_elems[self.cache_counter]=key
+        else: 
+            self.cache_elems.append(key)
+        self.cache_counter = (self.cache_counter + 1) % self.cache_size
+        self.__dicData__[key]=value
+        
         with open(dir,'r+') as file:
-            
             while  True:
                 line = file.readline()
                 if line == key+'\n':
@@ -39,6 +53,22 @@ class MyDataBase:
             file.close()
         return 'ok'
 
+    def contains(self,key):
+        if key in self.__dicData__:
+            return True
+        else:
+            with open(self.my_data,'r') as file:
+                while  True:    
+                    line = file.readline()
+                    if line == key+'\n':
+                        file.close()
+                        return True
+                    if not line:
+                        break
+                file.close()
+            return False
+            
+
     def get_http(self,key):
         try:
             with open(key,'r') as file:
@@ -50,7 +80,7 @@ class MyDataBase:
 
     def merge_data(self):
         read = ''
-        with open(self.prec_data,'r') as file:
+        with open(self.pred_data,'r') as file:
             read = file.read()
             file.close()
         
@@ -59,35 +89,19 @@ class MyDataBase:
             file.close()
         return 'ok'
 
+    def get_pred_data(self):
+        
+        with open(self.pred_data,'r') as file:
+            while  True:    
+                line = file.readline()
+                if not line:
+                    break
+                line = line[0:-1]
+                dir = 'DataBase/'+ line
+                with open(dir,'r') as file2:
+                    ret=[line,file2.read()]
+                    file2.close()
+                    yield ret
 
-
-    def removeData(self,key):
-        self.dicData.pop(key)
-        return 'ok'
-
-    
-
-
-    def saveData(self):
-        with open(self.dataDir,'w') as file:
-            json.dump(self.dicData,file,indent=4,ensure_ascii=False)
-            file.close()
-        return 'ok'
-            
-    def loadData(self):
-        with open(self.dataDir) as file:
-            data = json.load(file)
             file.close()
         
-        self.dicData = data
-        return data
-
-    def httpNameList(self):
-        with open(self.dataDir) as file:
-            data = json.load(file)
-            file.close()
-        return list(data.keys())
-
-
-
-

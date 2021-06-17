@@ -91,13 +91,12 @@ def set_mutex(method):
 class Node:
     def __init__(self, idx):
         self.__data_base = myDB.MyDataBase()
-        self.__data_base.loadData()
         self.id = idx
         self.succ_succ = None
         self.pred_pred = None
         self.finger = {}
         self.start = {}
-        self.__filenameList = self.__data_base.httpNameList()
+        self.__filenameList = []
         for i in range(k):
             self.start[i] = (self.id+(2**i)) % (2**k)
 
@@ -277,9 +276,11 @@ class Node:
     @except_handler
     def give_legacy(self):
         suc = self.successor() 
-        for key in self.data_base().keys():
-            if not key in suc.data_base().keys():
-                suc.data_base().addData(key , self.data_base().get_http(key)) 
+        sucsuc = suc.successor()
+        suc.data_base().merge_data()
+        for item in suc.data_base().get_pred_data():
+            sucsuc.data_base().addData(item[0],item[1],False)
+            
 
     @except_handler
     def lookup(self, key):
@@ -296,19 +297,16 @@ class Node:
     def save_file(self,filename,body):
         key = getHash(filename)
         node = self.lookup(key)
-        if filename in node.filenameList():
+        
+        if node.data_base().contains(filename):
             return False
 
-        node.filenameList().append(filename)
         node.data_base().addData(filename,body)
-        node.data_base().saveData()   
-        node.set_filenamelist(filename)     
+        self.successor().data_base.addData(filename,body,False)
         return True
   
     @except_handler
     def get_file(self,filename):
         node = self.lookup(getHash(filename))
-        if filename in node.filenameList():
-            return node.data_base().get_http(filename)
-        return 'Not found'
+        return node.data_base().get_http(filename)
 
