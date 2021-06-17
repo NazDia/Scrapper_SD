@@ -110,11 +110,6 @@ class Node:
     def filenameList(self):
         return self.__filenameList
 
-<<<<<<< HEAD
-    def set_filenamelist(self,data):
-        self.__filenameList.append(data) 
-        return 'ok'  
-=======
     @set_mutex
     def set_filenamelist(self, data):
         self.__filenameList.append(data)
@@ -128,7 +123,6 @@ class Node:
     @set_mutex
     def get_succ_succ(self, elem):
         return self.succ_succ
->>>>>>> 582b03e37d9dd9660216800a8f4c0e5dc27193b4
 
     @set_mutex
     def setSuccessor(self,succ):
@@ -307,13 +301,8 @@ class Node:
 
         node.filenameList().append(filename)
         node.data_base().addData(filename,body)
-<<<<<<< HEAD
-        node.data_base().saveData() 
-        node.set_filenamelist(filename)      
-=======
         node.data_base().saveData()   
         node.set_filenamelist(filename)     
->>>>>>> 582b03e37d9dd9660216800a8f4c0e5dc27193b4
         return True
   
     @except_handler
