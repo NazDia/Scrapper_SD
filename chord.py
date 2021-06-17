@@ -47,22 +47,18 @@ mutex = threading.Lock()
 
 def except_handler(method):
     def f(*args):
-        while True:
+        count = 3
+        while count > 0:
             try:
-                return method(*args)
-
+                ret = method(*args)
+                break
             except Exception as exc:
                 print(exc)
-                print('Trying again...')
-                return None
+                print('An error ocurred, trying again...')
+                count -= 1
+                if count == 0:
+                    ret = None
 
-    return f
-
-
-def check_none(method):
-    @except_handler
-    def f(*args):
-        ret = method(*args)
         if not ret is None:
             return ret
 
@@ -70,6 +66,8 @@ def check_none(method):
             if args[0].finger[i] == args[0].finger[0]:
                 args[0].finger[i] = args[0].succ_succ
 
+        args[0].finger[0] = args[0].succ_succ
+        args[0].predecessor = args[0].pred_pred
         args[0].update_finger_table_leave()
         return method(*args)
 
@@ -77,7 +75,7 @@ def check_none(method):
 
 
 def set_mutex(method):
-    @check_none
+    @except_handler
     def f(*args):
         mutex.acquire()
         ret = method(*args)
