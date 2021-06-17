@@ -8,7 +8,7 @@ import myDB
 k = 5
 MAX = 2**k
 
-def getHash(key, m=MAX):
+def getHash(key, m=k):
     result = hashlib.sha1(key.encode())
     return int(result.hexdigest(), 16) % 2**m
 
@@ -74,7 +74,10 @@ class Node:
     
     def filenameList(self):
         return self.__filenameList
-        
+
+    def set_filenamelist(self,data):
+        self.__filenameList.append(data) 
+        return 'ok'  
 
     @set_mutex
     def setSuccessor(self,succ):
@@ -226,7 +229,8 @@ class Node:
 
         node.filenameList().append(filename)
         node.data_base().addData(filename,body)
-        node.data_base().saveData()        
+        node.data_base().saveData() 
+        node.set_filenamelist(filename)      
         return True
     
   
