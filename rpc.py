@@ -342,9 +342,3 @@ class My_RPC:
             req.close()
 
             return self.deserialize(ret[1])
-
-rpc = My_RPC(('127.0.0.1', 8000))
-a = rpc.serialize(50000)
-print(a)
-b = rpc.deserialize(a)
-print(b)
