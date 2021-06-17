@@ -12,7 +12,7 @@ import urllib.request
 # node = basic_chord.Node(basic_chord.getHash(IP + ":" + str(port)))
 def start(IP, port, IP_dest=None, port_dest=None):
     node = chord.Node(chord.getHash(IP + str(port), 5))
-    rpc = My_RPC((IP, port))
+    rpc = My_RPC((IP, port))#, method_dec=chord.check_none)
     rpc.register_class(chord.Node)
     rpc.register_class(myDB.MyDataBase)
     name = rpc.register_name(node, 'Node')

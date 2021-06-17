@@ -2,6 +2,7 @@ import zmq
 import threading
 import inspect
 import time
+import pickle
 
 CALL = b'CALL'
 ERROR = b'ERROR'
@@ -230,57 +231,61 @@ class My_RPC:
         return name
 
     def deserialize(self, obj):
-        new_obj = obj.decode('utf-8')
-        semi_ret = new_obj.split('~')
-        if semi_ret[0] == 'int':
-            return int(semi_ret[1])
+        # new_obj = obj.decode('utf-8')
+        semi_ret = obj.split(b'~')
+        name = semi_ret[0].decode('utf-8')
+        ret = b'~'.join(semi_ret[1:])
+        if name == 'int':
+            return pickle.loads(ret)
+            # return int(semi_ret[1])
 
-        elif semi_ret[0] == 'float':
-            return float(semi_ret[1])
+        elif name == 'float':
+            return pickle.loads(ret)
 
-        elif semi_ret[0] == 'str':
-            return semi_ret[1]
+        elif name == 'str':
+            return pickle.loads(ret)
 
-        elif semi_ret[0] == 'list':
-            temp = '~'.join(semi_ret[1:])[1:-1]
-            end = []
-            count = 0
-            end.append('')
-            for i in temp:
-                if i == ']':
-                    count -= 1
-                    end[-1] += i
+        elif name == 'list':
+            return pickle.loads(ret)
+            # end = []
+            # count = 0
+            # end.append('')
+            # for i in temp:
+            #     if i == ']':
+            #         count -= 1
+            #         end[-1] += i
 
-                elif i == '[':
-                    count += 1
-                    end[-1] += i
+            #     elif i == '[':
+            #         count += 1
+            #         end[-1] += i
 
-                elif i == ',' and count == 0:
-                    end.append('')
+            #     elif i == ',' and count == 0:
+            #         end.append('')
 
-                elif i == ' ':
-                    pass
+            #     elif i == ' ':
+            #         pass
 
-                else:
-                    end[-1] += i
+            #     else:
+            #         end[-1] += i
 
-            for i in end:
-                if len(i) == 0:
-                    end.remove(i)
+            # for i in end:
+            #     if len(i) == 0:
+            #         end.remove(i)
 
-            ret = [ self.deserialize(x.encode('utf-8')) for x in end ]
-            return ret
+            # ret = [ self.deserialize(x.encode('utf-8')) for x in end ]
+            # return ret
 
 
-        elif semi_ret[0] in self._inherited_classes.keys():
+        elif name in self._inherited_classes.keys():
+            ret = ret.decode('utf-8')
             try:
-                temp = self.dic[semi_ret[1]]
+                temp = self.dic[ret]
             
             except KeyError:
-                a1 = semi_ret[1].split('$')[0].split('@')
+                a1 = ret.split('$')[0].split('@')
                 addr = (a1[0], int(a1[1]))
-                temp = self._inherited_classes[semi_ret[0]](semi_ret[0], semi_ret[1], addr)
-                self.dic[semi_ret[1]] = temp
+                temp = self._inherited_classes[name](name, ret, addr)
+                self.dic[ret] = temp
 
             try:
                 ret = self.val_dic[temp]
@@ -301,21 +306,16 @@ class My_RPC:
             return obj.__rpc_serialize__()
 
         elif obj.__class__.__name__ == 'int':
-            return b'int~' + bytes(str(obj), 'utf-8')
+            return b'int~' + pickle.dumps(obj)
 
         elif obj.__class__.__name__ == 'str':
-            return b'str~' + bytes(obj, 'utf-8')
+            return b'str~' + pickle.dumps(obj)
 
         elif obj.__class__.__name__ == 'float':
-            raise NotImplementedError()
+            raise b'float~' + pickle.dumps(obj)
 
         elif obj.__class__.__name__ == 'list':
-            ret = b'list~['
-            for i in obj:
-                ret += self.serialize(i) + b','
-
-            ret += b']'
-            return ret
+            ret = b'list~' + pickle.dumps(obj)
 
         else:
             raise NotImplementedError()
