@@ -7,6 +7,20 @@ CALL = b'CALL'
 ERROR = b'ERROR'
 ANSWER = b'ANSWER'
 REQUEST = b'REQUEST'
+SENT = 'SENT'
+RECEIVED_ERR = 'RECEIVED_ERR'
+TIMEOUT = 'TIMEOUT'
+
+def raiser(*args):
+    raise Exception(*args)
+
+def default_err_handler(*args):
+    if args[0] == TIMEOUT:
+        # print('Error Handler')
+        return None
+
+    elif args[0] == RECEIVED_ERR:
+        raise Exception(*args[1:])
 
 class My_RPC_Serializable:
     def __rpc_serialize__(self):
@@ -14,13 +28,16 @@ class My_RPC_Serializable:
 
 
 class My_RPC:
-    def __init__(self, address):
+    def __init__(self, address, timeout=1000, to_count=3, error_handler=default_err_handler):
         self._inherited_classes = {}
         self.val_dic = {}
         self.ival_dic = {}
         self.poller = zmq.Poller()
         self.dic = {}
         self.idic = {}
+        self.timeout = timeout
+        self.to_count = to_count
+        self.error_handler = error_handler
         self._address = address
         self._address_str = address[0] + '@' + str(address[1])
         self.context = zmq.Context()
@@ -102,15 +119,21 @@ class My_RPC:
         mutex = self.mutex
         poller = self.poller
         context = self.context
+        timeout = self.timeout
+        counter = self.to_count
         ival_dic = self.ival_dic
+        handler_err = self.error_handler
         class RPC_sub(class_x):
-            __rpc_context = None
+            __rpc_broken = False
+            __rpc_context = context
             __rpc_address = None
             __rpc_mutex = None
             __rpc_class_name = ''
             __rpc_name = ''
             __rpc_dics = (dic, idic)
             def __init__(self, class_name, name, addressx=None):
+                self.__rpc_error_handler = handler_err
+                self.__rpc_count = counter
                 self.__rpc_name = name
                 self.__rpc_class_name = class_name
                 self.__rpc_address = addressx if not addressx is None else address
@@ -131,60 +154,50 @@ class My_RPC:
 
                 else:
                     def f(*args):
+                        # if self.__rpc_broken:
+                        #     print('Broken')
+                        #     return None
+
                         f_args = []
                         for i in args:
-                            # print(i.__class__.__name__)
                             f_args.append(serialize(i))
-                            # if i.__class__.__name__ in inh_classes.keys():
-                            #     if i in ival_dic.keys():
-                            #         f_args.append(ival_dic[i].__rpc_serialize())
-                            #     # f_args.append(inh_classes[i.__class__.__name__](i).__rpc_serialize__())
-
-                            # elif i.__class__.__name__ == 'int':
-                            #     f_args.append(b'int:' + bytes([i]))
-
-                            # elif i.__class__.__name__ == 'string':
-                            #     f_args.append(b'string:' + bytes(i, 'utf-8'))
-
-                            # elif i.__class__.__name__ == 'float':
-                            #     raise NotImplementedError()
-
-                            # else:
-                            #     raise NotImplementedError()
                             
-                        sock = zmq.Context().socket(zmq.REQ)
+                        sock = context.socket(zmq.REQ)
                         sock.connect('tcp://%s:%s' % self.__rpc_address)
                         sock.send_multipart([CALL, bytes(self.__rpc_name, 'utf-8'), bytes(name, 'utf-8')] + [ x for x in f_args])
-                        # poller = zmq.Poller()
-                        # poller.register(sock, zmq.POLLIN)
                         my_poller = zmq.Poller()
                         my_poller.register(sock, zmq.POLLIN)
-                        counter = 3
+                        counter = self.__rpc_count
                         while True:
-                            poll_res = dict(my_poller.poll(1000))
-                            if not poll_res.get(sock) is None and poll_res.get(sock) & zmq.POLLIN != zmq.POLLIN:
+                            # print('Polling')
+                            poll_res = dict(my_poller.poll(timeout))
+                            if poll_res.get(sock) is None or poll_res.get(sock) & zmq.POLLIN != zmq.POLLIN:
                                 if counter <= 0:
                                     my_poller.unregister(sock)
-                                    print('Unable to reach the address')
-                                    # raise Exception('Unable to reach the address\'s process')
+                                    sock.close()
+                                    # self.__rpc_broken = True
+                                    # print('Unable to reach the address')
+                                    ret = self.__rpc_error_handler(TIMEOUT)
+                                    # print(ret)
+                                    return ret
 
                                 counter -= 1
                                 continue
                             
-                            # print('receiving')
                             time.sleep(0.1)
                             ret = sock.recv_multipart()
                             mutex.acquire()
                             if ret[0] == ANSWER:
                                 my_poller.unregister(sock)
+                                sock.close()
                                 mutex.release()
                                 return deserialize(ret[1])
 
                             if ret[0] == ERROR:
                                 my_poller.unregister(sock)
+                                sock.close()
                                 mutex.release()
-                                raise Exception()
-                                # For error handling
+                                return self.error_handler(RECEIVED_ERR, self.deserialize(ret[1]))
 
                 return f
 
@@ -248,7 +261,7 @@ class My_RPC:
             return ret
 
         else:
-            raise Exception()
+            raise NotImplementedError()
 
     def serialize(self, obj):
         if obj.__class__.__name__ in self._inherited_classes.keys() and obj in self.ival_dic.keys():
@@ -283,18 +296,20 @@ class My_RPC:
         req.send_multipart([REQUEST, bytes(address[0], 'utf-8') + b'@' + bytes(str(address[1]), 'utf-8') + b'$' + bytes(name, 'utf-8')])
         poller = zmq.Poller()
         poller.register(req, zmq.POLLIN)
-        count = 10
+        count = self.to_count
         while True:
-            poll = dict(poller.poll(1000))
+            poll = dict(poller.poll(self.timeout))
             if poll.get(req) is None or poll.get(req) & zmq.POLLIN != zmq.POLLIN:
                 if count <= 0:
-                    raise Exception()
+                    req.close()
+                    return self.error_handler(TIMEOUT)
 
                 count -= 1
                 continue
 
             time.sleep(0.1)
             ret = req.recv_multipart()
+            req.close()
 
             return self.deserialize(ret[1])
 
