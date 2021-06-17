@@ -242,6 +242,37 @@ class My_RPC:
         elif semi_ret[0] == 'str':
             return semi_ret[1]
 
+        elif semi_ret[0] == 'list':
+            temp = ':'.join(semi_ret[1:])[1:-1]
+            end = []
+            count = 0
+            end.append('')
+            for i in temp:
+                if i == ']':
+                    count -= 1
+                    end[-1] += i
+
+                elif i == '[':
+                    count += 1
+                    end[-1] += i
+
+                elif i == ',' and count == 0:
+                    end.append('')
+
+                elif i == ' ':
+                    pass
+
+                else:
+                    end[-1] += i
+
+            for i in end:
+                if len(i) == 0:
+                    end.remove(i)
+
+            ret = [ self.deserialize(x.encode('utf-8')) for x in end ]
+            return ret
+
+
         elif semi_ret[0] in self._inherited_classes.keys():
             try:
                 temp = self.dic[semi_ret[1]]
@@ -280,9 +311,9 @@ class My_RPC:
             raise NotImplementedError()
 
         elif obj.__class__.__name__ == 'list':
-            ret = b'['
+            ret = b'list:['
             for i in obj:
-                ret += self.serialize(i)
+                ret += self.serialize(i) + b','
 
             ret += b']'
             return ret
