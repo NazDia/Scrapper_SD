@@ -10,7 +10,7 @@ MAX = 2**k
 
 def getHash(key, m=MAX):
     result = hashlib.sha1(key.encode())
-    return int(result.hexdigest(), 16) % m
+    return int(result.hexdigest(), 16) % 2**m
 
 
 def decr(value,size):
@@ -204,7 +204,7 @@ class Node:
 
     def give_legacy(self):
         suc = self.successor() 
-        for key in self.data_base.keys():
+        for key in self.data_base().keys():
             if not key in suc.data_base().keys():
                 suc.data_base().addData(key , self.data_base().get_http(key)) 
 
@@ -232,10 +232,10 @@ class Node:
   
 
     def get_file(self,filename):
-        node = self.lookup(filename)
+        node = self.lookup(getHash(filename))
         if filename in node.filenameList():
             return node.data_base().get_http(filename)
-        return 'ok'
+        return 'Not found'
 
     """
     SaveFile

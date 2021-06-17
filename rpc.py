@@ -212,7 +212,7 @@ class My_RPC:
                     setattr(self, key, attr)
 
             def __rpc_serialize__(self):
-                return bytes(self.__rpc_class_name, 'utf-8') + b':' + bytes(self.__rpc_name, 'utf-8')
+                return bytes(self.__rpc_class_name, 'utf-8') + b'~' + bytes(self.__rpc_name, 'utf-8')
             
         self._inherited_classes[class_x.__name__] = RPC_sub
 
@@ -231,10 +231,9 @@ class My_RPC:
 
     def deserialize(self, obj):
         new_obj = obj.decode('utf-8')
-        semi_ret = new_obj.split(':')
+        semi_ret = new_obj.split('~')
         if semi_ret[0] == 'int':
-            ret = int.from_bytes(bytes(semi_ret[1], 'utf-8'), 'big')
-            return ret
+            return int(semi_ret[1])
 
         elif semi_ret[0] == 'float':
             return float(semi_ret[1])
@@ -243,7 +242,7 @@ class My_RPC:
             return semi_ret[1]
 
         elif semi_ret[0] == 'list':
-            temp = ':'.join(semi_ret[1:])[1:-1]
+            temp = '~'.join(semi_ret[1:])[1:-1]
             end = []
             count = 0
             end.append('')
@@ -302,16 +301,16 @@ class My_RPC:
             return obj.__rpc_serialize__()
 
         elif obj.__class__.__name__ == 'int':
-            return b'int:' + bytes([obj])
+            return b'int~' + bytes(str(obj), 'utf-8')
 
         elif obj.__class__.__name__ == 'str':
-            return b'str:' + bytes(obj, 'utf-8')
+            return b'str~' + bytes(obj, 'utf-8')
 
         elif obj.__class__.__name__ == 'float':
             raise NotImplementedError()
 
         elif obj.__class__.__name__ == 'list':
-            ret = b'list:['
+            ret = b'list~['
             for i in obj:
                 ret += self.serialize(i) + b','
 
@@ -344,3 +343,8 @@ class My_RPC:
 
             return self.deserialize(ret[1])
 
+rpc = My_RPC(('127.0.0.1', 8000))
+a = rpc.serialize(50000)
+print(a)
+b = rpc.deserialize(a)
+print(b)

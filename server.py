@@ -14,7 +14,9 @@ def start(IP, port, IP_dest=None, port_dest=None):
     node = chord.Node(chord.getHash(IP + str(port), 5))
     rpc = My_RPC((IP, port))
     rpc.register_class(chord.Node)
+    rpc.register_class(myDB.MyDataBase)
     name = rpc.register_name(node, 'Node')
+    name2 = rpc.register_name(node.data_base(), 'DB')
     if not IP_dest is None and not port_dest is None:
         other = rpc.request_item((IP_dest, port_dest), 'Node')
         node.join(other)
@@ -52,8 +54,8 @@ def start(IP, port, IP_dest=None, port_dest=None):
             
     #         socket.send_string(send_data)
 
-    http = 'https://www.prueba.com'
-    body =  '112121'
+    http = 'https://www.prueba2.com'
+    body =  '112121jdgwejdg'
     print('Waiting')
     while True:
         x = input()
@@ -67,10 +69,16 @@ def start(IP, port, IP_dest=None, port_dest=None):
             node.leave()
         
         elif x == '4':
-            node.save_file(http,body)
+            print('Input Name:')
+            name = input()
+            print('Input Body:')
+            body = input()
+            node.save_file(name,body)
         
         elif x == '5':
-            data = node.get_file(http)
+            print('Get Name:')
+            name = input()
+            data = node.get_file(name)
             print (data)
 
 def printNodes(node):
