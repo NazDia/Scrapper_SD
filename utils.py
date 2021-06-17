@@ -3,7 +3,7 @@ from typing import KeysView
 import urllib.request
 import myDB
 
-bd = myDB.MyDataBase()
+#bd = myDB.MyDataBase()
 # http = 'https://www.twitter.com/'
 # datos = urllib.request.urlopen(http).read().decode()
 # bd.addData(http,datos)
@@ -15,8 +15,13 @@ bd = myDB.MyDataBase()
 # bd.addData(http,datos)
 # bd.saveData()
 
-load=bd.loadData()
+a = {2:'3'}
+b = {3:'3'}
+for key in a.keys():
+    if not key in b:
+        b[key]=a[key]
 
-keys=bd.httpNameList()
-a=9
+for value in b.values():
+    print(value)
     
+
