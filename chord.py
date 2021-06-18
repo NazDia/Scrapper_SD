@@ -300,7 +300,7 @@ class Node:
             return False
 
         node.data_base().addData(filename,body)
-        self.successor().data_base.addData(filename,body,False)
+        self.successor().data_base().addData(filename,body,False)
         return True
   
     @except_handler

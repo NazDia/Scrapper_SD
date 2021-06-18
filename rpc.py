@@ -247,6 +247,9 @@ class My_RPC:
 
         elif name == 'list':
             return pickle.loads(ret)
+
+        elif name == 'bool':
+            return pickle.loads(ret)
             # end = []
             # count = 0
             # end.append('')
@@ -316,6 +319,9 @@ class My_RPC:
 
         elif obj.__class__.__name__ == 'list':
             ret = b'list~' + pickle.dumps(obj)
+
+        elif obj.__class__.__name__ == 'bool':
+            ret = b'bool~' + pickle.dumps(obj)
 
         else:
             raise NotImplementedError()
