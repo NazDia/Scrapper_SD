@@ -262,11 +262,12 @@ class Node:
 
     @except_handler
     def leave(self):
+        self.give_legacy()
         suc = self.successor()
         suc.set_pred(self.get_pred())
         self.predecessor.setSuccessor(self.successor())
 
-        self.give_legacy()
+        
         return self.update_others_leave()
 
     @except_handler

@@ -93,7 +93,11 @@ class MyDataBase:
 
     def get_pred_data(self):
         if self.current_reading is None:
+<<<<<<< HEAD
             file = open(self.pred_data,'r')
+=======
+            file =  open(self.pred_data,'r') 
+>>>>>>> bd5a5e63cb4db5fe3164d922333d97f4bda20859
             self.current_reading = file
 
         line = self.current_reading.readline()
