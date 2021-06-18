@@ -315,13 +315,13 @@ class My_RPC:
             return b'str~' + pickle.dumps(obj)
 
         elif obj.__class__.__name__ == 'float':
-            raise b'float~' + pickle.dumps(obj)
+            return b'float~' + pickle.dumps(obj)
 
         elif obj.__class__.__name__ == 'list':
-            ret = b'list~' + pickle.dumps(obj)
+            return b'list~' + pickle.dumps(obj)
 
         elif obj.__class__.__name__ == 'bool':
-            ret = b'bool~' + pickle.dumps(obj)
+            return b'bool~' + pickle.dumps(obj)
 
         else:
             raise NotImplementedError()

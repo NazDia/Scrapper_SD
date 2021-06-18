@@ -87,7 +87,11 @@ def printNodes(node):
     print (node.get_id())
     while end != node.successor():
         node = node.successor()
-        print (node.get_id())
+        try:
+            print (node.get_id())
+        except:
+            print ('not reached')
+            break
     print ('-----------')
 
 def showFinger(node, k):
@@ -99,7 +103,7 @@ def showFinger(node, k):
 
 if __name__ == "__main__":
     if len(sys.argv) <3:
-        start('192.168.1.101',8085)
+        start('192.168.1.101',8080)
         raise Exception()
 
     elif len(sys.argv) == 3:

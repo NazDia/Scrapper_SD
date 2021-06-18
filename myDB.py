@@ -11,6 +11,7 @@ class MyDataBase:
     cache_counter = 0
     cache_elems = []
     pop_item = None
+    current_reading = None
     def __init__(self):
         # try:
         #     open(self.my_data,'r')
@@ -71,7 +72,8 @@ class MyDataBase:
 
     def get_http(self,key):
         try:
-            with open(key,'r') as file:
+            dirx = 'DataBase/' + key
+            with open(dirx,'r') as file:
                 data = file.read()
                 file.close()
                 return data
@@ -90,18 +92,35 @@ class MyDataBase:
         return 'ok'
 
     def get_pred_data(self):
-        
-        with open(self.pred_data,'r') as file:
-            while  True:    
-                line = file.readline()
-                if not line:
-                    break
-                line = line[0:-1]
-                dir = 'DataBase/'+ line
-                with open(dir,'r') as file2:
-                    ret=[line,file2.read()]
-                    file2.close()
-                    yield ret
+        if self.current_reading is None:
+            with open(self.pred_data,'r') as file:
+                self.current_reading = file
 
-            file.close()
+        line = self.current_reading.readline()
+        if not line:
+            self.current_reading.close()
+            self.current_reading = None
+            return ''
+
+        line = line[0:-1]
+        dir = 'DataBase/'+ line
+        with open(dir,'r') as file2:
+            ret=[line,file2.read()]
+            file2.close()
+
+        return ret
+
+            
+            # while  True:    
+            #     line = file.readline()
+            #     if not line:
+            #         break
+            #     line = line[0:-1]
+            #     dir = 'DataBase/'+ line
+            #     with open(dir,'r') as file2:
+            #         ret=[line,file2.read()]
+            #         file2.close()
+            #         yield ret
+
+            # file.close()
         

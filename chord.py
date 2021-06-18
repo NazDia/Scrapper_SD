@@ -267,8 +267,6 @@ class Node:
         self.predecessor.setSuccessor(self.successor())
 
         self.give_legacy()
-        suc.give_legacy()
-
         return self.update_others_leave()
 
     @except_handler
@@ -276,8 +274,17 @@ class Node:
         suc = self.successor() 
         sucsuc = suc.successor()
         suc.data_base().merge_data()
-        for item in suc.data_base().get_pred_data():
-            sucsuc.data_base().addData(item[0],item[1],False)
+        line = ' '
+        while True:
+            line = suc.data_base().get_pred_data()
+            if line == '':
+                break
+
+            sucsuc.data_base().addData(line[0],line[1],False)
+
+
+        # for item in suc.data_base().get_pred_data():
+        #     sucsuc.data_base().addData(item[0],item[1],False)
             
 
     @except_handler
@@ -300,7 +307,7 @@ class Node:
             return False
 
         node.data_base().addData(filename,body)
-        self.successor().data_base().addData(filename,body,False)
+        node.successor().data_base().addData(filename,body,False)
         return True
   
     @except_handler
