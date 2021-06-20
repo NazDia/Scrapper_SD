@@ -3,8 +3,8 @@ import zmq
 from tkinter import filedialog as FileDialog
 import sys
 
-IP = '127.0.0.1'
-PORT = 8080
+IP = '192.168.1.102'
+PORT = 8081
 
 class Client:
     def __init__(self,IP,port):
@@ -59,16 +59,17 @@ while True:
     if choice == '1':
         url = input('Write url\n')
         httpOut  =  client.getHTTP(url)
-        print (f'httpOut :{httpOut}')
+        print (f'httpOut :\n{httpOut}')
     
     if choice == '2':
         choice = input('1 Write pair <url>:<HTTP>\n2 import json\n')
         if choice == '1':
-            url_HTTP = input('<url>:<HTTP>\n')
+             url = input('url:')
+             http = input('http:')
         if choice == '2':
             importDir = openDialog()
-        
-        status = client.setHTTP('asd','asd')
+           
+        status = client.setHTTP(url,http)
         print ('status : %s'% status)
             
 
