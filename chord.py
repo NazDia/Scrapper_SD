@@ -1,5 +1,6 @@
-from os import truncate
+from os import pread, truncate
 from platform import node
+from sys import flags
 import time
 import random
 import hashlib
@@ -192,6 +193,13 @@ class Node:
 
         self.succ_succ = self.successor().successor() 
         self.pred_pred = self.get_pred().get_pred()
+        pred = self.get_pred()
+        while True:
+            line = pred.data_base().get_pred_data(False)
+            if line == '':
+                break
+
+            self.data_base().addData(line[0],line[1],False)
         return self
           
     @except_handler
