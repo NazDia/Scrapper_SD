@@ -36,6 +36,7 @@ class My_RPC:
         self.val_dic = {}
         self.ival_dic = {}
         self.thread_dic = {}
+        self.thread_time = {}
         self.poller = zmq.Poller()
         self.dic = {}
         self.idic = {}
@@ -76,6 +77,7 @@ class My_RPC:
 
     def handler(self, addr, call):
         self.thread_dic[threading.current_thread()] = addr
+        self.thread_time[threading.current_thread()] = time.perf_counter()
         if call[0] == CALL:
             self.handler_call(addr, call)
 
@@ -85,6 +87,7 @@ class My_RPC:
         elif call[0] == WAITING:
             return
 
+        self.thread_time.pop(threading.current_thread())
         self.thread_dic.pop(threading.current_thread())
 
     def handler_request(self, addr, call):
@@ -124,6 +127,7 @@ class My_RPC:
         address = self._address
         address_str = self._address_str
         thread_dic = self.thread_dic
+        thread_times = self.thread_time
         dic = self.dic
         idic = self.idic
         inh_classes = self._inherited_classes
@@ -170,7 +174,7 @@ class My_RPC:
 
                 else:
                     def f(*args):
-                        if threading.current_thread() in thread_dic.keys():
+                        if threading.current_thread() in thread_dic.keys() and time.perf_counter() > (self.__rpc_count * self.__rpc_timeout / 1000) / 2 + thread_times[threading.current_thread()]:
                             while True:
                                 mutex.acquire()
                                 poller_res = dict(poller.poll(self.__rpc_timeout))
@@ -179,6 +183,7 @@ class My_RPC:
 
                                 mutex.release()
                                 
+                            thread_times[threading.current_thread()] = time.perf_counter()
                             router.send_multipart(thread_dic[threading.current_thread()] + [WAIT, serialize(self.__rpc_count), serialize(self.__rpc_timeout)])
                             mutex.release()
 
