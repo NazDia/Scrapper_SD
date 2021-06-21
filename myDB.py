@@ -1,5 +1,5 @@
 import json
-from os import truncate
+from os import truncate, remove
 from typing import Counter
 
 class MyDataBase:
@@ -11,7 +11,8 @@ class MyDataBase:
     cache_counter = 0
     cache_elems = []
     pop_item = None
-    current_reading = None
+    current_reading_pred = None
+    current_reading_mine = None
     def __init__(self):
         # try:
         #     open(self.my_data,'r')
@@ -92,18 +93,14 @@ class MyDataBase:
         return 'ok'
 
     def get_pred_data(self):
-        if self.current_reading is None:
-<<<<<<< HEAD
-            file = open(self.pred_data,'r')
-=======
+        if self.current_reading_pred is None:
             file =  open(self.pred_data,'r') 
->>>>>>> bd5a5e63cb4db5fe3164d922333d97f4bda20859
-            self.current_reading = file
+            self.current_reading_pred = file
 
-        line = self.current_reading.readline()
+        line = self.current_reading_pred.readline()
         if not line:
-            self.current_reading.close()
-            self.current_reading = None
+            self.current_reading_pred.close()
+            self.current_reading_pred = None
             return ''
 
         line = line[0:-1]
@@ -114,7 +111,50 @@ class MyDataBase:
 
         return ret
 
+    def get_my_data(self):
+        if self.current_reading_mine is None:
+            self.current_reading_mine = open(self.my_data, 'r')
             
+        line = self.current_reading_mine.readline()
+        if not line:
+            self.current_reading_mine.close()
+            self.current_reading_mine = None
+            return ''
+
+        line = line[0:-1]
+        dirx = 'DataBase/' + line
+        with open(dirx, 'r') as file2:
+            ret = [line, file2.read()]
+            file2.close()
+
+        return ret
+
+    def delete_from_my_data(self, listx, my_data=True, delete_file=True):
+        new = []
+        to_open = self.my_data if my_data else self.pred_data
+        with open(to_open, 'r') as mine:
+            while True:
+                line = mine.readline()
+                if not line:
+                    break
+
+                line = line[0:-1]
+                if not line in listx:
+                    new.append(line)
+
+                else:
+                    if delete_file:
+                        remove('DataBase/' + line)
+
+            mine.close()
+        
+        with open(to_open, 'w') as mine:
+            for i in new:
+                mine.write(i + '\n')
+
+            mine.close()
+
+        return True
             # while  True:    
             #     line = file.readline()
             #     if not line:

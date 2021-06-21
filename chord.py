@@ -5,8 +5,11 @@ import random
 import hashlib
 import threading
 import myDB
+
 k = 5
 MAX = 2**k
+BLOCKED = 'BLOCKED'
+OK = 'OK'
 
 def getHash(key, m=k):
     result = hashlib.sha1(key.encode())
@@ -62,13 +65,16 @@ def except_handler(method):
         if not ret is None:
             return ret
 
-        for i in range(1, k):
-            if args[0].finger[i] == args[0].finger[0]:
-                args[0].finger[i] = args[0].succ_succ
+        try:
+            args[0].successor().get_id()
 
-        args[0].finger[0] = args[0].succ_succ
-        args[0].predecessor = args[0].pred_pred
-        args[0].update_finger_table_leave()
+        except:
+            args[0].setSuccessor(args[0].get_succ_succ())
+            args[0].successor().get_legacy()
+            args[0].successor().get_pred_from(args[0])
+
+        args[0].update_others_leave()
+        args[0].set_pred_pred(args[0].get_pred().get_pred())
         return method(*args)
 
     return f
@@ -95,9 +101,18 @@ class Node:
         self.finger = {}
         self.start = {}
         self.__filenameList = []
+        self._status = OK
         for i in range(k):
             self.start[i] = (self.id+(2**i)) % (2**k)
 
+    @set_mutex
+    def status(self):
+        return self._status
+
+    @set_mutex
+    def set_status(self, status):
+        self._status = status
+        return status
 
     @set_mutex
     def data_base(self):
@@ -110,7 +125,7 @@ class Node:
     @set_mutex
     def set_filenamelist(self, data):
         self.__filenameList.append(data)
-        return 'ok'
+        return OK
 
     @set_mutex
     def set_succ_succ(self, elem):
@@ -118,8 +133,12 @@ class Node:
         return elem
 
     @set_mutex
-    def get_succ_succ(self, elem):
+    def get_succ_succ(self):
         return self.succ_succ
+
+    @except_handler
+    def update_succ_succ(self):
+        return self.set_succ_succ(self.successor().successor())
 
     @set_mutex
     def setSuccessor(self,succ):
@@ -158,9 +177,15 @@ class Node:
         return self.finger[0]
     
     @except_handler
-    def find_successor(self,id):  
-        if betweenE(id,self.get_pred().get_id(),self.id):
+    def find_successor(self,id):
+        pred_id = self.get_pred().get_id()
+        if pred_id is None:
+            self.set_pred(self.get_pred_pred())
+            pred_id = self.get_pred().get_id()
+
+        if betweenE(id,pred_id,self.id):
             return self
+
         n = self.find_predecessor(id)
         return n.successor()
     
@@ -169,8 +194,19 @@ class Node:
         if id == self.get_id:
             return self.get_pred()
         n1 = self
-        while not betweenE(id,n1.get_id(),n1.successor().get_id()):
+        n1_suc_id = n1.successor().get_id()
+        if n1_suc_id is None:
+            n1.setSuccessor(n1.get_succ_succ())
+            n1_suc_id = n1.successor().get_id()
+
+        while not betweenE(id,n1.get_id(),n1_suc_id):
             n1 = n1.closest_preceding_finger(id)
+            # n1.setSuccessor(n1.get_succ_succ())
+            n1_suc_id = n1.successor().get_id()
+            if n1_suc_id is None:
+                n1.setSuccessor(n1.get_succ_succ())
+                n1_suc_id = n1.successor().get_id()
+
         return n1
     
     @except_handler
@@ -181,17 +217,60 @@ class Node:
         return self
         
     @except_handler
-    def join(self,n1):
+    def join(self,n1, resent=False):
+        while n1.status() == BLOCKED:
+            time.sleep(1)
+
+        self._status = BLOCKED
+        n1.set_status(BLOCKED)
         if self == n1:
             for i in range(k):
                 self.set_finger(i, self)
+                
             self.set_pred(self)
-        else:
-            self.init_finger_table(n1)
-            self.update_others() 
+            self.succ_succ = self.successor().successor() 
+            self.pred_pred = self.get_pred().get_pred()
+            self._status = OK
+            # n1.set_status(OK)
+            return self
 
+        n1_suc = n1.successor()
+        n1_suc_id = n1_suc.get_id()
+        if n1_suc_id is None:
+            n1.setSuccessor(n1.get_succ_succ())
+            n1.update_succ_succ()
+            n1_suc = n1.successor()
+            n1_suc_id = n1_suc.get_id()
+
+        if not resent and Ebetween(self.id, n1.get_id(), n1_suc_id):
+            if self.id == n1.get_id():
+                self.id += 1
+                if self.id == n1_suc_id:
+                    n1.set_status(OK)
+                    return self.join(n1_suc)
+
+
+        elif not resent:
+            n1_new = n1.find_predecessor(self.id)
+            n1.set_status(OK)
+            return self.join(n1_new, True)
+
+        else:
+            if not Ebetween(self.id, n1.get_id(), n1_suc_id):
+                return self.join(n1_suc, True)
+
+
+        self.init_finger_table(n1)
+        self.update_others()
         self.succ_succ = self.successor().successor() 
         self.pred_pred = self.get_pred().get_pred()
+        self._status = OK
+        n1.set_status(OK)
+        ret = n1.set_my_data_to(self)
+        deleted, not_deleted = (ret[0], ret[1])
+        print(not_deleted)
+        self.successor().data_base().delete_from_my_data(deleted, False, self.get_pred() != self.successor())
+        self.successor().data_base().delete_from_my_data(not_deleted, True, self.get_pred() != self.successor())
         return self
           
     @except_handler
@@ -217,7 +296,7 @@ class Node:
                 p = p.successor()
             p.update_finger_table(self,i)
 
-        return 'OK'
+        return OK
     
     @except_handler
     def update_finger_table(self,s,i):
@@ -227,7 +306,7 @@ class Node:
             p = self.get_pred()
             p.update_finger_table(s,i)
 
-        return 'OK'
+        return OK
 
     @except_handler
     def update_finger_table_leave(self):
@@ -240,9 +319,9 @@ class Node:
             # If multiple nodes in network, we find succ for each entryID
             self.set_finger(i, self.find_successor(entryId))
 
-        return 'OK'
+        return OK
 
-    @except_handler
+    # @except_handler
     def update_others_leave(self):
         current = self.successor()
         end = self.successor()
@@ -258,13 +337,16 @@ class Node:
             current.set_pred_pred(current.get_pred().get_pred())
             changed = True
 
-        return 'OK'
+        return OK
 
     @except_handler
     def leave(self):
+        while self.status() == BLOCKED:
+            pass
         self.give_legacy()
         suc = self.successor()
         suc.set_pred(self.get_pred())
+        suc.get_pred_from()
         self.predecessor.setSuccessor(self.successor())
 
         
@@ -272,20 +354,97 @@ class Node:
 
     @except_handler
     def give_legacy(self):
-        suc = self.successor() 
-        sucsuc = suc.successor()
-        suc.data_base().merge_data()
-        line = ' '
+        suc = self.successor()
+        return suc.get_legacy()
+        
+        # sucsuc = suc.successor()
+        # suc.data_base().merge_data()
+        # line = ''
+        # while True:
+        #     line = suc.data_base().get_pred_data()
+        #     if line == '':
+        #         break
+
+        #     sucsuc.data_base().addData(line[0],line[1],False)
+
+    @except_handler
+    def get_legacy(self, other=None):
+        suc = self.successor() if other is None else other
+        self.data_base().merge_data()
+        line = ''
         while True:
-            line = suc.data_base().get_pred_data()
+            line = self.data_base().get_pred_data()
             if line == '':
                 break
 
-            sucsuc.data_base().addData(line[0],line[1],False)
+            suc.data_base().addData(line[0], line[1], False)
 
+        return OK
 
-        # for item in suc.data_base().get_pred_data():
-        #     sucsuc.data_base().addData(item[0],item[1],False)
+    @except_handler
+    def set_my_data_to(self, other):
+        db = self.data_base()
+        other_db = other.data_base()
+        other_id = other.get_id()
+        other_suc = other.successor()
+        other_suc_id = other_suc.get_id()
+        if other_suc_id is None:
+            if other_suc == other.get_succ_succ:
+                return None
+
+            other_suc = other.setSuccessor(other.get_succ_succ())
+            other_suc_id = other_suc.get_id()
+            self.update_others_leave()
+
+        line = ''
+        to_delete = []
+        not_deleted = []
+        while True:
+            line = db.get_my_data()
+            if line == '':
+                break
+            
+            if Ebetween(getHash(line[0]), other_id, other_suc_id):
+                not_deleted.append(line[0])
+                other_db.addData(line[0], line[1])
+
+            else:
+                to_delete.append(line[0])
+                other_db.addData(line[0], line[1], False)
+
+        other_db.delete_from_my_data(to_delete)
+        return [to_delete, not_deleted]
+
+    @except_handler
+    def get_pred_from(self, other=None):
+        db = self.data_base()
+        target = other if not other is None else self.get_pred()
+        target_db = target.data_base()
+        target_id = target.get_id()
+        if (target_id is None or target_db is None) and other is None:
+            if self.get_pred() == self.get_pred_pred():
+                return None
+
+            self.set_pred(self.get_pred_pred())
+            self.pred_pred = self.pred_pred.get_pred()
+            self.update_others_leave()
+            return self.get_pred_from()
+
+        elif (target_id is None or target_db is None) and not other is None:
+            return None
+
+        line = ''
+        # deleted = []
+        # to_delete = []
+        while True:
+            line = target_db.get_pred_data()
+            if line == '':
+                break
+
+            db.addData(line[0], line[1], False)
+
+        return OK
+
             
 
     @except_handler
@@ -301,6 +460,9 @@ class Node:
     
     @except_handler
     def save_file(self,filename,body):
+        while self.status() == BLOCKED:
+            pass
+
         key = getHash(filename)
         node = self.lookup(key)
         

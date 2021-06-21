@@ -33,6 +33,7 @@ class My_RPC:
         self._inherited_classes = {}
         self.val_dic = {}
         self.ival_dic = {}
+        self.thread_dic = {}
         self.poller = zmq.Poller()
         self.dic = {}
         self.idic = {}
