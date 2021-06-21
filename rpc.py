@@ -11,6 +11,8 @@ REQUEST = b'REQUEST'
 SENT = 'SENT'
 RECEIVED_ERR = 'RECEIVED_ERR'
 TIMEOUT = 'TIMEOUT'
+WAIT = b'WAIT'
+WAITING = b'WAITING'
 
 def raiser(*args):
     raise Exception(*args)
@@ -73,11 +75,17 @@ class My_RPC:
             
 
     def handler(self, addr, call):
+        self.thread_dic[threading.current_thread()] = addr
         if call[0] == CALL:
             self.handler_call(addr, call)
 
         elif call[0] == REQUEST:
             self.handler_request(addr, call)
+
+        elif call[0] == WAITING:
+            return
+
+        self.thread_dic.pop(threading.current_thread())
 
     def handler_request(self, addr, call):
         obj = self.idic[call[1].decode('utf-8')]
@@ -113,6 +121,7 @@ class My_RPC:
     def register_class(self, class_x):
         address = self._address
         address_str = self._address_str
+        thread_dic = self.thread_dic
         dic = self.dic
         idic = self.idic
         inh_classes = self._inherited_classes
@@ -125,7 +134,9 @@ class My_RPC:
         counter = self.to_count
         ival_dic = self.ival_dic
         handler_err = self.error_handler
+        router = self.router
         class RPC_sub(class_x):
+            # __rpc_router = router
             __rpc_broken = False
             __rpc_context = context
             __rpc_address = None
@@ -138,6 +149,7 @@ class My_RPC:
                 self.__rpc_count = counter
                 self.__rpc_name = name
                 self.__rpc_class_name = class_name
+                self.__rpc_timeout = timeout
                 self.__rpc_address = addressx if not addressx is None else address
                 method_names = [name for name in dir(class_x) if callable(getattr(class_x, name))]
                 for name in method_names:
@@ -156,9 +168,18 @@ class My_RPC:
 
                 else:
                     def f(*args):
-                        # if self.__rpc_broken:
-                        #     print('Broken')
-                        #     return None
+                        if threading.current_thread() in thread_dic.keys():
+                            while True:
+                                mutex.acquire()
+                                poller_res = dict(poller.poll(self.__rpc_timeout))
+                                if not poller_res.get(router) is None and poller_res.get(router) & zmq.POLLOUT == zmq.POLLOUT:
+                                    break
+
+                                mutex.release()
+                                
+                            router.send_multipart(thread_dic[threading.current_thread()] + [WAIT, serialize(self.__rpc_count), serialize(self.__rpc_timeout)])
+                            mutex.release()
+
 
                         f_args = []
                         for i in args:
@@ -170,6 +191,7 @@ class My_RPC:
                         my_poller = zmq.Poller()
                         my_poller.register(sock, zmq.POLLIN)
                         counter = self.__rpc_count
+                        timeout = self.__rpc_timeout
                         while True:
                             # print('Polling')
                             poll_res = dict(my_poller.poll(timeout))
@@ -200,6 +222,20 @@ class My_RPC:
                                 sock.close()
                                 mutex.release()
                                 return self.error_handler(RECEIVED_ERR, self.deserialize(ret[1]))
+
+                            if ret[0] == WAIT:
+                                counter = deserialize(ret[1])
+                                timeout = deserialize(ret[2])
+                                sock.send_multipart([WAITING, serialize(counter), serialize(timeout)])
+                                if threading.current_thread() in thread_dic.keys():
+                                    while True:
+                                        # mutex.acquire()
+                                        poller_res = dict(poller.poll(self.__rpc_timeout))
+                                        if not poller_res.get(router) is None and poller_res.get(router) & zmq.POLLOUT == zmq.POLLOUT:
+                                            break
+                                        
+                                    router.send_multipart(thread_dic[threading.current_thread()] + [WAIT, serialize(self.__rpc_count), serialize(timeout)])
+                                mutex.release()
 
                 return f
 

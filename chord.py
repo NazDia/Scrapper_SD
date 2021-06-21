@@ -437,7 +437,7 @@ class Node:
         # deleted = []
         # to_delete = []
         while True:
-            line = target_db.get_pred_data()
+            line = target_db.get_my_data()
             if line == '':
                 break
 
