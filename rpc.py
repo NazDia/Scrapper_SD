@@ -103,6 +103,8 @@ class My_RPC:
         
     def handler_call(self, addr, call):
         obj = self.idic[call[1].decode('utf-8')]
+        if obj.__class__.__name__ == 'str':
+            a = 0
         params = [ self.deserialize(x) for x in call[3:] ]
         semi_ans = getattr(obj, call[2].decode('utf-8'))(*params)
         ans = [ ANSWER, self.serialize(semi_ans) ]
@@ -208,7 +210,7 @@ class My_RPC:
                                 counter -= 1
                                 continue
                             
-                            time.sleep(0.1)
+                            # time.sleep(0.1)
                             ret = sock.recv_multipart()
                             mutex.acquire()
                             if ret[0] == ANSWER:
@@ -217,16 +219,16 @@ class My_RPC:
                                 mutex.release()
                                 return deserialize(ret[1])
 
-                            if ret[0] == ERROR:
+                            elif ret[0] == ERROR:
                                 my_poller.unregister(sock)
                                 sock.close()
                                 mutex.release()
                                 return self.error_handler(RECEIVED_ERR, self.deserialize(ret[1]))
 
-                            if ret[0] == WAIT:
+                            elif ret[0] == WAIT:
                                 counter = deserialize(ret[1])
                                 timeout = deserialize(ret[2])
-                                sock.send_multipart([WAITING, serialize(counter), serialize(timeout)])
+                                sock.send_multipart([WAITING, serialize(counter), serialize(timeout), serialize(self.__rpc_address[1])])
                                 if threading.current_thread() in thread_dic.keys():
                                     while True:
                                         # mutex.acquire()
@@ -234,7 +236,21 @@ class My_RPC:
                                         if not poller_res.get(router) is None and poller_res.get(router) & zmq.POLLOUT == zmq.POLLOUT:
                                             break
                                         
-                                    router.send_multipart(thread_dic[threading.current_thread()] + [WAIT, serialize(self.__rpc_count), serialize(timeout)])
+                                    router.send_multipart(thread_dic[threading.current_thread()] + [WAITING, serialize(self.__rpc_count), serialize(timeout)])
+                                mutex.release()
+
+                            elif ret[0] == WAITING:
+                                counter = deserialize(ret[1])
+                                timeout = deserialize(ret[2])
+                                sock.send_multipart([WAITING, serialize(counter), serialize(timeout), serialize(self.__rpc_address[1])])
+                                if threading.current_thread() in thread_dic.keys():
+                                    while True:
+                                        # mutex.acquire()
+                                        poller_res = dict(poller.poll(self.__rpc_timeout))
+                                        if not poller_res.get(router) is None and poller_res.get(router) & zmq.POLLOUT == zmq.POLLOUT:
+                                            break
+                                        
+                                    router.send_multipart(thread_dic[threading.current_thread()] + [WAITING, serialize(self.__rpc_count), serialize(timeout)])
                                 mutex.release()
 
                 return f
@@ -276,6 +292,9 @@ class My_RPC:
             return pickle.loads(ret)
             # return int(semi_ret[1])
 
+        elif name == 'None':
+            return pickle.loads(ret)
+        
         elif name == 'float':
             return pickle.loads(ret)
 
@@ -339,6 +358,9 @@ class My_RPC:
             raise NotImplementedError()
 
     def serialize(self, obj):
+        if obj is None:
+            return b'None~' + pickle.dumps(obj)
+
         if obj.__class__.__name__ in self._inherited_classes.keys() and obj in self.ival_dic.keys():
             return self.ival_dic[obj].__rpc_serialize__()
 

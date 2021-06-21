@@ -65,17 +65,17 @@ def except_handler(method):
         if not ret is None:
             return ret
 
-        try:
-            args[0].successor().get_id()
+        # try:
+        #     args[0].successor().get_id()
 
-        except:
-            args[0].setSuccessor(args[0].get_succ_succ())
-            args[0].successor().get_legacy()
-            args[0].successor().get_pred_from(args[0])
+        # except:
+        #     args[0].setSuccessor(args[0].get_succ_succ())
+        #     args[0].successor().get_legacy()
+        #     args[0].successor().get_pred_from(args[0])
 
-        args[0].update_others_leave()
-        args[0].set_pred_pred(args[0].get_pred().get_pred())
-        return method(*args)
+        # args[0].update_others_leave()
+        # args[0].set_pred_pred(args[0].get_pred().get_pred())
+        # return method(*args)
 
     return f
 
@@ -99,11 +99,22 @@ class Node:
         self.succ_succ = None
         self.pred_pred = None
         self.finger = {}
+        self.requesting_join = []
         self.start = {}
         self.__filenameList = []
         self._status = OK
         for i in range(k):
             self.start[i] = (self.id+(2**i)) % (2**k)
+
+        self.pinger = threading.Thread(target=self.ping)
+
+    @set_mutex
+    def node_requested_join(self, other):
+        self.requesting_join.append(other)
+
+    @set_mutex
+    def node_finished_join(self, other):
+        self.requesting_join.remove(other)
 
     @set_mutex
     def status(self):
@@ -179,9 +190,6 @@ class Node:
     @except_handler
     def find_successor(self,id):
         pred_id = self.get_pred().get_id()
-        if pred_id is None:
-            self.set_pred(self.get_pred_pred())
-            pred_id = self.get_pred().get_id()
 
         if betweenE(id,pred_id,self.id):
             return self
@@ -195,20 +203,56 @@ class Node:
             return self.get_pred()
         n1 = self
         n1_suc_id = n1.successor().get_id()
-        if n1_suc_id is None:
-            n1.setSuccessor(n1.get_succ_succ())
-            n1_suc_id = n1.successor().get_id()
 
         while not betweenE(id,n1.get_id(),n1_suc_id):
             n1 = n1.closest_preceding_finger(id)
-            # n1.setSuccessor(n1.get_succ_succ())
             n1_suc_id = n1.successor().get_id()
-            if n1_suc_id is None:
-                n1.setSuccessor(n1.get_succ_succ())
-                n1_suc_id = n1.successor().get_id()
 
         return n1
     
+    def ping(self):
+        while True:
+            if self.status() == BLOCKED or len(self.requesting_join) > 0:
+                continue
+            
+            prev_st = self.status()
+            self.set_status(BLOCKED)
+            try:
+                ret = self.get_pred().status()
+
+            except Exception as exc:
+                ret = None
+
+            if ret is None:
+                pred = self.set_pred(self.get_pred_pred())
+                self.set_pred_pred(pred.get_pred())
+                pred.setSuccessor(self)
+                self.get_legacy()
+                self.get_pred_from()
+
+            try:
+                ret = self.successor().status()
+
+            except Exception as exc:
+                ret = None
+
+            if ret is None:
+                prev_suc = self.successor()
+                current_suc = self.setSuccessor(self.get_succ_succ())
+                self.set_succ_succ(self.successor().successor())
+                for i in self.finger.keys():
+                    if self.finger[i] == prev_suc:
+                        self.set_finger(i, self.successor())
+
+                current_suc.get_legacy()
+                current_suc.set_pred(self)
+                current_suc.set_pred_pred(self.get_pred())
+                current_suc.get_pred_from()
+                self.update_finger_table_leave()
+
+            self.set_status(prev_st)
+        
+
     @except_handler
     def closest_preceding_finger(self,id):
         for i in range(k-1,-1,-1):
@@ -216,8 +260,9 @@ class Node:
                 return self.finger[i]
         return self
         
-    @except_handler
+    # @except_handler
     def join(self,n1, resent=False):
+        n1.node_requested_join(self)
         while n1.status() == BLOCKED:
             time.sleep(1)
 
@@ -231,7 +276,8 @@ class Node:
             self.succ_succ = self.successor().successor() 
             self.pred_pred = self.get_pred().get_pred()
             self._status = OK
-            # n1.set_status(OK)
+            self.pinger.start()
+            n1.node_finished_join(self)
             return self
 
         n1_suc = n1.successor()
@@ -247,16 +293,22 @@ class Node:
                 self.id += 1
                 if self.id == n1_suc_id:
                     n1.set_status(OK)
+                    # self.pinger.start()
+                    n1.node_finished_join(self)
                     return self.join(n1_suc)
 
 
         elif not resent:
             n1_new = n1.find_predecessor(self.id)
             n1.set_status(OK)
+            n1.node_finished_join(self)
+            # self.pinger.start()
             return self.join(n1_new, True)
 
         else:
             if not Ebetween(self.id, n1.get_id(), n1_suc_id):
+                n1.node_finished_join(self)
+                # self.pinger.start()
                 return self.join(n1_suc, True)
 
 
@@ -271,6 +323,8 @@ class Node:
         print(not_deleted)
         self.successor().data_base().delete_from_my_data(deleted, False, self.get_pred() != self.successor())
         self.successor().data_base().delete_from_my_data(not_deleted, True, self.get_pred() != self.successor())
+        self.pinger.start()
+        n1.node_finished_join(self)
         return self
           
     @except_handler
@@ -388,13 +442,6 @@ class Node:
         other_id = other.get_id()
         other_suc = other.successor()
         other_suc_id = other_suc.get_id()
-        if other_suc_id is None:
-            if other_suc == other.get_succ_succ:
-                return None
-
-            other_suc = other.setSuccessor(other.get_succ_succ())
-            other_suc_id = other_suc.get_id()
-            self.update_others_leave()
 
         line = ''
         to_delete = []
@@ -421,17 +468,6 @@ class Node:
         target = other if not other is None else self.get_pred()
         target_db = target.data_base()
         target_id = target.get_id()
-        if (target_id is None or target_db is None) and other is None:
-            if self.get_pred() == self.get_pred_pred():
-                return None
-
-            self.set_pred(self.get_pred_pred())
-            self.pred_pred = self.pred_pred.get_pred()
-            self.update_others_leave()
-            return self.get_pred_from()
-
-        elif (target_id is None or target_db is None) and not other is None:
-            return None
 
         line = ''
         # deleted = []
