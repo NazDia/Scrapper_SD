@@ -1,5 +1,6 @@
-from os import truncate
+from os import pread, truncate
 from platform import node
+from sys import flags
 import time
 import random
 import hashlib
@@ -266,11 +267,18 @@ class Node:
         self.pred_pred = self.get_pred().get_pred()
         self._status = OK
         n1.set_status(OK)
-        ret = n1.set_my_data_to(self)
-        deleted, not_deleted = (ret[0], ret[1])
-        print(not_deleted)
-        self.successor().data_base().delete_from_my_data(deleted, False, self.get_pred() != self.successor())
-        self.successor().data_base().delete_from_my_data(not_deleted, True, self.get_pred() != self.successor())
+        # ret = n1.set_my_data_to(self)
+        # deleted, not_deleted = (ret[0], ret[1])
+        # print(not_deleted)
+        # self.successor().data_base().delete_from_my_data(deleted, False, self.get_pred() != self.successor())
+        # self.successor().data_base().delete_from_my_data(not_deleted, True, self.get_pred() != self.successor())
+        pred = self.get_pred()
+        while True:
+            line = pred.data_base().get_pred_data(False)
+            if line == '':
+                break
+
+            self.data_base().addData(line[0],line[1],False)
         return self
           
     @except_handler

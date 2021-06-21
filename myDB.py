@@ -92,10 +92,11 @@ class MyDataBase:
             file.close()
         return 'ok'
 
-    def get_pred_data(self):
-        if self.current_reading_pred is None:
-            file =  open(self.pred_data,'r') 
-            self.current_reading_pred = file
+    def get_pred_data(self,pred = True):
+        file_data = self.pred_data if pred else self.my_data
+        if self.current_reading is None:
+            file =  open(self.my_data,'r') 
+            self.current_reading = file
 
         line = self.current_reading_pred.readline()
         if not line:
