@@ -70,7 +70,10 @@ def start(IP, port, IP_dest=None, port_dest=None):
             send_data = node.get_file(http)
             if  send_data == 'not found':
                 print('http not found, importing from the net')
-                send_data = urllib.request.urlopen(http).read().decode()
+                try:
+                    send_data = urllib.request.urlopen(http).read().decode()
+                except:
+                    send_data = 'url not found in the net'
                 node.save_file(http,send_data)
 
             time.sleep (1) # Esperar un tiempo
