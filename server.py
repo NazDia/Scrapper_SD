@@ -1,3 +1,4 @@
+import threading
 import zmq
 import time
 # import basic_chord
@@ -10,6 +11,30 @@ import urllib.request
 # port = 8080
 
 # node = basic_chord.Node(basic_chord.getHash(IP + ":" + str(port)))
+
+def show_status(node):
+    while True:
+        x = input()
+        if x == '1':
+            printNodes(node)
+        elif x == '2':
+            showFinger(node, 5)
+        elif x == '3':
+            node.leave()
+
+        elif x == '4':
+            print('Input Name:')
+            name = input()
+            print('Input Body:')
+            body = input()
+            node.save_file(name,body)
+
+        elif x == '5':
+            print('Get Name:')
+            name = input()
+            data = node.get_file(name)
+            print (data)
+
 def start(IP, port, IP_dest=None, port_dest=None):
     node = chord.Node(chord.getHash(IP + str(port), 5))
     rpc = My_RPC((IP, port))#, method_dec=chord.check_none)
@@ -24,62 +49,50 @@ def start(IP, port, IP_dest=None, port_dest=None):
     else:
         node.join(node)
 
-    # context = zmq.Context()
-    # # Se crea un socket de tipo replay (REP)
-    # socket = context.socket(zmq.REP)
-    # # Asignarle al socket la dirección del server
-    # socket.bind("tcp://*:%s" % (port+1))
-    # while True:
-    #     # Esperar por el próximo request de un cliente
-    #     message = socket.recv_multipart()
+    status_thread = threading.Thread(target = show_status,args = [node]).start()
 
-    #     request_type = message[0].decode()
-    #     http = message[1].decode()
+    context = zmq.Context()
+    # Se crea un socket de tipo replay (REP)
+    socket = context.socket(zmq.REP)
+    # Asignarle al socket la dirección del server
+    socket.bind("tcp://*:%s" % (port+1))
+    while True:
+        # Esperar por el próximo request de un cliente
+        print ('waiting')
+        message = socket.recv_multipart()
 
-    #     #get http request 
-    #     if request_type == '0':
-    #         send_data = node.get_file()
-    #         if  send_data is None:
-    #             send_data = urllib.request.urlopen(http).read().decode()
-    #         time.sleep (1) # Esperar un tiempo
-    #         socket.send_string(send_data)
+        request_type = message[0].decode()
+        http = message[1].decode()
+
+        #get http request 
+        if request_type == '0':
+            print('get http request')
+            send_data = node.get_file(http)
+            if  send_data == 'not found':
+                print('http not found, importing from the net')
+                send_data = urllib.request.urlopen(http).read().decode()
+                node.save_file(http,send_data)
+
+            time.sleep (1) # Esperar un tiempo
+            socket.send_string(send_data)
+            print('get http ok')
         
-    #     # set http request    
-    #     else:
-    #         body = message [2]
+        # set http request    
+        else:
+            print('set http request')
+            body = message [2].decode()
             
-    #         send_data = 'save file ok'
-    #         if not node.save_file(http,body):
-    #             send_data = 'the file already exist'
+            send_data = 'save file ok'
+            if not node.save_file(http,body):
+                send_data = 'the file already exist'
             
-    #         socket.send_string(send_data)
+            socket.send_string(send_data)
+            print(send_data)
 
     http = 'https://www.prueba2.com'
     body =  '112121jdgwejdg'
     print('Waiting')
-    while True:
-        x = input()
-        if x == '1':
-            printNodes(node)
-
-        elif x == '2':
-            showFinger(node, 5)
-
-        elif x == '3':
-            node.leave()
-        
-        elif x == '4':
-            print('Input Name:')
-            name = input()
-            print('Input Body:')
-            body = input()
-            node.save_file(name,body)
-        
-        elif x == '5':
-            print('Get Name:')
-            name = input()
-            data = node.get_file(name)
-            print (data)
+  
 
 def printNodes(node):
     print ('Ring nodes :')
