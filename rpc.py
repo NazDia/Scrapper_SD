@@ -174,7 +174,7 @@ class My_RPC:
 
                 else:
                     def f(*args):
-                        if threading.current_thread() in thread_dic.keys() and time.perf_counter() > (self.__rpc_count * self.__rpc_timeout / 1000) / 2 + thread_times[threading.current_thread()]:
+                        if threading.current_thread() in thread_dic.keys() and time.perf_counter() > (self.__rpc_count * self.__rpc_timeout / 1000) + thread_times[threading.current_thread()]:
                             while True:
                                 mutex.acquire()
                                 poller_res = dict(poller.poll(self.__rpc_timeout))

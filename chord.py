@@ -111,10 +111,12 @@ class Node:
     @set_mutex
     def node_requested_join(self, other):
         self.requesting_join.append(other)
+        return other
 
     @set_mutex
     def node_finished_join(self, other):
         self.requesting_join.remove(other)
+        return other
 
     @set_mutex
     def status(self):
@@ -211,7 +213,9 @@ class Node:
         return n1
     
     def ping(self):
+        # return
         while True:
+            time.sleep(0.5)
             if self.status() == BLOCKED or len(self.requesting_join) > 0:
                 continue
             
@@ -229,6 +233,10 @@ class Node:
                 pred.setSuccessor(self)
                 self.get_legacy()
                 self.get_pred_from()
+                if self == self.get_pred() and self == self.successor():
+                    for i in self.finger.keys():
+                        if self.finger[i] != self:
+                            self.set_finger(i, self)
 
             try:
                 ret = self.successor().status()
@@ -260,7 +268,6 @@ class Node:
                 return self.finger[i]
         return self
         
-    # @except_handler
     def join(self,n1, resent=False):
         n1.node_requested_join(self)
         while n1.status() == BLOCKED:
@@ -268,6 +275,18 @@ class Node:
 
         self._status = BLOCKED
         n1.set_status(BLOCKED)
+        try:
+            return self.inner_join(n1, resent)
+
+        except Exception as exc:
+            print(exc)
+            n1.set_status(OK)
+
+        return 0
+        
+
+    @except_handler
+    def inner_join(self,n1, resent=False):
         if self == n1:
             for i in range(k):
                 self.set_finger(i, self)
@@ -283,10 +302,11 @@ class Node:
         n1_suc = n1.successor()
         n1_suc_id = n1_suc.get_id()
         if n1_suc_id is None:
-            n1.setSuccessor(n1.get_succ_succ())
-            n1.update_succ_succ()
-            n1_suc = n1.successor()
-            n1_suc_id = n1_suc.get_id()
+            raise Exception("Error while joining")
+        #     n1.setSuccessor(n1.get_succ_succ())
+        #     n1.update_succ_succ()
+        #     n1_suc = n1.successor()
+        #     n1_suc_id = n1_suc.get_id()
 
         if not resent and Ebetween(self.id, n1.get_id(), n1_suc_id):
             if self.id == n1.get_id():
