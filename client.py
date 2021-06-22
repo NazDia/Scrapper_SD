@@ -40,7 +40,7 @@ if len(sys.argv)>=3:
     PORT=int(sys.argv[2])
 
 try:
-    client=Client(IP,PORT)
+    client=Client(IP,PORT+1)
     print('connect\n')
 except:
     print('Failed to connect\n')

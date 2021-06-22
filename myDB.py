@@ -29,7 +29,7 @@ class MyDataBase:
 
     def addData(self,key,value,self_data=True):
         dir = self.my_data if self_data else self.pred_data
-        
+        key = key.replace('/','{')
         if len(self.__dicData__)>=self.cache_size:
             self.__dicData__.pop(self.cache_elems[self.cache_counter])
             self.cache_elems[self.cache_counter]=key
@@ -50,12 +50,16 @@ class MyDataBase:
             file.write(key+'\n')
             file.close()
         
-        with open('DataBase/'+key,'w') as file:
+        
+        open_dir = 'DataBase/'+key
+        
+        with open(open_dir,'w') as file:
             file.write(value)
             file.close()
         return 'ok'
 
     def contains(self,key):
+        key = key.replace('/','{')
         if key in self.__dicData__:
             return True
         else:
@@ -72,6 +76,7 @@ class MyDataBase:
             
 
     def get_http(self,key):
+        key = key.replace('/','{')
         try:
             dirx = 'DataBase/' + key
             with open(dirx,'r') as file:
